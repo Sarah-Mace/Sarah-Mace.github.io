@@ -1,1 +1,47 @@
-<p>hey hi</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Chat Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #response {
+            white-space: pre-wrap;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            min-height: 100px;
+        }
+        textarea {
+            height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Claude Chat Interface</h1>
+        
+        <label for="apiKey">API Key:</label>
+        <input type="password" id="apiKey" placeholder="Enter your Anthropic API key">
+        
+        <label for="prompt">Prompt:</label>
+        <textarea id="prompt" placeholder="Enter your message to Claude"></textarea>
+        
+        <button onclick="sendMessage()">Send Message</button>
+        
+        <div id="response"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
