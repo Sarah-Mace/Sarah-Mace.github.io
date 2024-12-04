@@ -1,6 +1,5 @@
-// script.js
-const GITHUB_USERNAME = 'Sarah-Mace'; // Replace with your username
-const GITHUB_REPO = 'Sarah-Mace.github.io'; // Replace with your repo name
+const GITHUB_USERNAME = 'Sarah-Mace';
+const GITHUB_REPO = 'Sarah-Mace.github.io';
 
 async function triggerWorkflow() {
     const token = document.getElementById('githubToken').value;
@@ -31,7 +30,7 @@ async function triggerWorkflow() {
                 body: JSON.stringify({
                     event_type: 'claude_chat',
                     client_payload: {
-                        system_prompt: systemPrompt,
+                        system_prompt: systemPrompt || '',
                         user_prompt: userPrompt
                     }
                 })
@@ -101,11 +100,22 @@ async function pollForResponse() {
                     if (fileResponse.ok) {
                         const data = await fileResponse.json();
                         console.log('Response file data:', data);
-                        const content = JSON.parse(atob(data.content));
-                        console.log('Decoded content:', content);
-                        responseDiv.textContent = content.response;
-                        statusDiv.textContent = 'Status: Response received!';
-                        return true;
+                        
+                        // Decode base64 content and parse JSON
+                        try {
+                            const decodedContent = atob(data.content);
+                            console.log('Decoded content:', decodedContent);
+                            const content = JSON.parse(decodedContent);
+                            console.log('Parsed content:', content);
+                            
+                            responseDiv.textContent = content.response;
+                            statusDiv.textContent = 'Status: Response received!';
+                            return true;
+                        } catch (parseError) {
+                            console.error('Error parsing response:', parseError);
+                            statusDiv.textContent = 'Status: Error parsing response';
+                            return true;
+                        }
                     } else if (fileResponse.status === 404) {
                         console.log('Response file not found');
                         statusDiv.textContent = 'Status: Workflow completed but no response file found';
