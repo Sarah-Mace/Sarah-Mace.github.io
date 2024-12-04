@@ -52,6 +52,7 @@ async function pollForResponse() {
     const token = document.getElementById('githubToken').value;
     let attempts = 0;
     const maxAttempts = 30;
+    let lastSeenSha = '';
 
     // Add initial delay to allow workflow to start
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -59,7 +60,7 @@ async function pollForResponse() {
     const checkResponse = async () => {
         try {
             const fileResponse = await fetch(
-                `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
+                `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json?timestamp=${Date.now()}`,
                 {
                     headers: {
                         'Authorization': `token ${token}`,
@@ -70,6 +71,13 @@ async function pollForResponse() {
 
             if (fileResponse.ok) {
                 const data = await fileResponse.json();
+                
+                // If we've seen this version before, keep polling
+                if (data.sha === lastSeenSha) {
+                    return false;
+                }
+                
+                lastSeenSha = data.sha;
                 try {
                     const decodedContent = atob(data.content);
                     const content = JSON.parse(decodedContent);
