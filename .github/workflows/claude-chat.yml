@@ -26,43 +26,27 @@ jobs:
           system_prompt=${system_prompt:1:-1}
           user_prompt=${user_prompt:1:-1}
           
-          # Construct the JSON payload
-          json_payload=$(cat <<EOF
-          {
-            "model": "claude-3-opus-20240229",
-            "max_tokens": 1024,
-            "system": "${system_prompt}",
-            "messages": [
-              {
-                "role": "user",
-                "content": "${user_prompt}"
-              }
-            ]
-          }
-          EOF
-          )
-          
-          echo "Debug - JSON payload:"
-          echo "$json_payload"
-          
-          # Make the API call
           response=$(curl -s -X POST https://api.anthropic.com/v1/messages \
             -H "x-api-key: ${ANTHROPIC_API_KEY}" \
             -H "content-type: application/json" \
             -H "anthropic-version: 2023-06-01" \
-            -d "$json_payload")
-          
-          echo "Debug - API response:"
-          echo "$response"
+            -d "{
+              \"model\": \"claude-3-opus-20240229\",
+              \"max_tokens\": 1024,
+              \"system\": \"${system_prompt}\",
+              \"messages\": [
+                {
+                  \"role\": \"user\",
+                  \"content\": \"${user_prompt}\"
+                }
+              ]
+            }")
           
           # Extract just the response text using jq
           response_text=$(echo $response | jq -r '.content[0].text // .error.message')
           
           # Create response JSON file with proper escaping
           echo "{\"response\": $(echo "$response_text" | jq -R -s .)}" > response.json
-          
-          echo "Created response.json:"
-          cat response.json
 
       - name: Commit and push response
         run: |
