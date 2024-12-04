@@ -4,8 +4,6 @@ const GITHUB_USERNAME = 'Sarah-Mace';
 const GITHUB_REPO = 'Sarah-Mace.github.io';
 
 async function triggerWorkflow() {
-    const GITHUB_USERNAME = document.getElementById('githubName').value;
-    const GITHUB_REPO = document.getElementById('githubRepo').value;
     const token = document.getElementById('githubToken').value;
     const systemPrompt = document.getElementById('systemPrompt').value;
     const userPrompt = document.getElementById('userPrompt').value;
