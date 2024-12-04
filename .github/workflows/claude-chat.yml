@@ -7,6 +7,8 @@ on:
 jobs:
   chat:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Explicitly set write permissions
     
     steps:
       - name: Checkout repository
@@ -16,36 +18,54 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Escape special characters in prompts
-          system_prompt=$(echo '${{ github.event.client_payload.system_prompt }}' | sed 's/"/\\"/g')
-          user_prompt=$(echo '${{ github.event.client_payload.user_prompt }}' | sed 's/"/\\"/g')
+          echo "Making API call to Claude..."
           
-          response=$(curl -X POST https://api.anthropic.com/v1/messages \
+          # Debug: Print prompts (sanitized)
+          echo "System prompt: ${{ github.event.client_payload.system_prompt }}"
+          echo "User prompt: ${{ github.event.client_payload.user_prompt }}"
+          
+          # Make API call and store response
+          response=$(curl -v -X POST https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "content-type: application/json" \
             -H "anthropic-version: 2023-06-01" \
-            -d "{
-              \"model\": \"claude-3-opus-20240229\",
-              \"max_tokens\": 1024,
-              \"messages\": [
+            -d '{
+              "model": "claude-3-opus-20240229",
+              "max_tokens": 1024,
+              "messages": [
                 {
-                  \"role\": \"system\",
-                  \"content\": \"$system_prompt\"
+                  "role": "system",
+                  "content": "${{ github.event.client_payload.system_prompt }}"
                 },
                 {
-                  \"role\": \"user\",
-                  \"content\": \"$user_prompt\"
+                  "role": "user",
+                  "content": "${{ github.event.client_payload.user_prompt }}"
                 }
               ]
-            }")
+            }')
+          
+          echo "API Response received:"
+          echo "$response"
           
           # Create response JSON file
-          echo "{\"response\": $(echo $response | jq '.content[0].text')}" > response.json
+          echo "{\"response\": \"$response\"}" > response.json
+          
+          echo "Created response.json:"
+          cat response.json
 
       - name: Commit and push response
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           git add response.json
-          git commit -m "Update Claude response" || exit 0
-          git push origin ${GITHUB_REF#refs/heads/}
+          git status
+          git commit -m "Update Claude response [skip ci]"
+          git push
+
+      - name: Debug information
+        if: always()
+        run: |
+          echo "Current directory contents:"
+          ls -la
+          echo "Response file contents:"
+          cat response.json || echo "response.json not found"
