@@ -1,5 +1,5 @@
-const GITHUB_USERNAME = 'YOUR_USERNAME';
-const GITHUB_REPO = 'YOUR_REPO';
+const GITHUB_USERNAME = 'Sarah-Mace';
+const GITHUB_REPO = 'Sarah-Mace.github.io';
 
 async function triggerWorkflow() {
     const token = document.getElementById('githubToken').value;
