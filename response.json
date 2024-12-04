@@ -1,1 +1,1 @@
-{"response": "{"type":"error","error":{"type":"authentication_error","message":"x-api-key header is required"}}"}
+{"response": "messages: Unexpected role \"system\". The Messages API accepts a top-level `system` parameter, not \"system\" as an input message role.\n"}
