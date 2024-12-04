@@ -52,6 +52,9 @@ async function pollForResponse() {
     const token = document.getElementById('githubToken').value;
     let attempts = 0;
     const maxAttempts = 30;
+    
+    // Store the timestamp when we started polling
+    const startTimestamp = Date.now();
 
     const checkWorkflowRun = async () => {
         try {
@@ -73,10 +76,16 @@ async function pollForResponse() {
                 }
 
                 const latestRun = runsData.workflow_runs[0];
+                const runStartedAt = new Date(latestRun.created_at).getTime();
+
+                // Only process runs that started after we triggered this request
+                if (runStartedAt < startTimestamp) {
+                    return false;
+                }
 
                 if (latestRun.status === 'completed') {
                     const fileResponse = await fetch(
-                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
+                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json?timestamp=${Date.now()}`,
                         {
                             headers: {
                                 'Authorization': `token ${token}`,
@@ -99,7 +108,7 @@ async function pollForResponse() {
                         }
                     } else if (fileResponse.status === 404) {
                         statusDiv.textContent = 'Status: Workflow completed but no response file found';
-                        return true;
+                        return false;  // Changed to false to keep polling
                     }
                 } else if (latestRun.status === 'failure') {
                     statusDiv.textContent = 'Status: Workflow failed';
