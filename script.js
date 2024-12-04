@@ -52,9 +52,9 @@ async function pollForResponse() {
     const token = document.getElementById('githubToken').value;
     let attempts = 0;
     const maxAttempts = 30;
-    
-    // Store the timestamp when we started polling
-    const startTimestamp = Date.now();
+
+    // Add initial delay to allow workflow to start
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     const checkWorkflowRun = async () => {
         try {
@@ -76,16 +76,13 @@ async function pollForResponse() {
                 }
 
                 const latestRun = runsData.workflow_runs[0];
-                const runStartedAt = new Date(latestRun.created_at).getTime();
-
-                // Only process runs that started after we triggered this request
-                if (runStartedAt < startTimestamp) {
-                    return false;
-                }
 
                 if (latestRun.status === 'completed') {
+                    // Add small delay after completion before fetching response
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
                     const fileResponse = await fetch(
-                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json?timestamp=${Date.now()}`,
+                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
                         {
                             headers: {
                                 'Authorization': `token ${token}`,
@@ -108,7 +105,7 @@ async function pollForResponse() {
                         }
                     } else if (fileResponse.status === 404) {
                         statusDiv.textContent = 'Status: Workflow completed but no response file found';
-                        return false;  // Changed to false to keep polling
+                        return true;
                     }
                 } else if (latestRun.status === 'failure') {
                     statusDiv.textContent = 'Status: Workflow failed';
