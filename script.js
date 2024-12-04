@@ -53,12 +53,13 @@ async function pollForResponse() {
     const statusDiv = document.getElementById('status');
     const token = document.getElementById('githubToken').value;
     let attempts = 0;
-    const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds maximum wait
+    const maxAttempts = 30;
 
-    const checkResponse = async () => {
+    const checkWorkflowRun = async () => {
         try {
-            const response = await fetch(
-                `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
+            // Get the latest workflow runs
+            const runsResponse = await fetch(
+                `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/actions/runs?event=repository_dispatch`,
                 {
                     headers: {
                         'Authorization': `token ${token}`,
@@ -67,15 +68,41 @@ async function pollForResponse() {
                 }
             );
 
-            if (response.ok) {
-                const data = await response.json();
-                const content = JSON.parse(atob(data.content));
-                responseDiv.textContent = content.response;
-                statusDiv.textContent = 'Status: Response received!';
-                return true;
+            if (runsResponse.ok) {
+                const runsData = await runsResponse.json();
+                const latestRun = runsData.workflow_runs[0];
+
+                if (latestRun.status === 'completed') {
+                    // Now check for the response file
+                    const fileResponse = await fetch(
+                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
+                        {
+                            headers: {
+                                'Authorization': `token ${token}`,
+                                'Accept': 'application/vnd.github.v3+json',
+                            }
+                        }
+                    );
+
+                    if (fileResponse.ok) {
+                        const data = await fileResponse.json();
+                        const content = JSON.parse(atob(data.content));
+                        responseDiv.textContent = content.response;
+                        statusDiv.textContent = 'Status: Response received!';
+                        return true;
+                    } else if (fileResponse.status === 404) {
+                        statusDiv.textContent = 'Status: Workflow completed but no response file found';
+                        return true;
+                    }
+                } else if (latestRun.status === 'failure') {
+                    statusDiv.textContent = 'Status: Workflow failed';
+                    return true;
+                }
+                
+                statusDiv.textContent = `Status: Workflow ${latestRun.status}...`;
             }
         } catch (error) {
-            console.log('Still waiting for response...');
+            console.log('Error checking workflow:', error);
         }
         return false;
     };
@@ -87,12 +114,13 @@ async function pollForResponse() {
         }
 
         attempts++;
-        const found = await checkResponse();
+        const finished = await checkWorkflowRun();
         
-        if (!found) {
+        if (!finished) {
             setTimeout(poll, 2000); // Check every 2 seconds
         }
     };
 
     poll();
 }
+
