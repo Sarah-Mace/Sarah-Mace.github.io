@@ -1,41 +1,98 @@
-async function sendMessage() {
-    const apiKey = document.getElementById('apiKey').value;
-    const prompt = document.getElementById('prompt').value;
+const GITHUB_USERNAME = 'YOUR_USERNAME';
+const GITHUB_REPO = 'YOUR_REPO';
+
+async function triggerWorkflow() {
+    const token = document.getElementById('githubToken').value;
+    const systemPrompt = document.getElementById('systemPrompt').value;
+    const userPrompt = document.getElementById('userPrompt').value;
+    const statusDiv = document.getElementById('status');
     const responseDiv = document.getElementById('response');
-    
-    if (!apiKey || !prompt) {
-        alert('Please enter both API key and prompt');
+
+    if (!token || !userPrompt) {
+        alert('Please enter both GitHub token and user prompt');
         return;
     }
 
-    responseDiv.textContent = 'Loading...';
+    statusDiv.textContent = 'Status: Triggering workflow...';
 
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-3-opus-20240229',
-                max_tokens: 1024,
-                messages: [{
-                    role: 'user',
-                    content: prompt
-                }]
-            })
-        });
+        // Trigger the workflow
+        const response = await fetch(
+            `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/dispatches`,
+            {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    event_type: 'claude_chat',
+                    client_payload: {
+                        system_prompt: systemPrompt,
+                        user_prompt: userPrompt
+                    }
+                })
+            }
+        );
 
-        const data = await response.json();
-        
-        if (data.error) {
-            responseDiv.textContent = `Error: ${data.error.message}`;
+        if (response.ok) {
+            statusDiv.textContent = 'Status: Workflow triggered! Checking for response...';
+            // Start polling for response
+            pollForResponse();
         } else {
-            responseDiv.textContent = data.content[0].text;
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
     } catch (error) {
-        responseDiv.textContent = `Error: ${error.message}`;
+        statusDiv.textContent = `Status: Error - ${error.message}`;
     }
+}
+
+async function pollForResponse() {
+    const responseDiv = document.getElementById('response');
+    const statusDiv = document.getElementById('status');
+    const token = document.getElementById('githubToken').value;
+    let attempts = 0;
+    const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds maximum wait
+
+    const checkResponse = async () => {
+        try {
+            const response = await fetch(
+                `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
+                {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                    }
+                }
+            );
+
+            if (response.ok) {
+                const data = await response.json();
+                const content = JSON.parse(atob(data.content));
+                responseDiv.textContent = content.response;
+                statusDiv.textContent = 'Status: Response received!';
+                return true;
+            }
+        } catch (error) {
+            console.log('Still waiting for response...');
+        }
+        return false;
+    };
+
+    const poll = async () => {
+        if (attempts >= maxAttempts) {
+            statusDiv.textContent = 'Status: Timeout waiting for response';
+            return;
+        }
+
+        attempts++;
+        const found = await checkResponse();
+        
+        if (!found) {
+            setTimeout(poll, 2000); // Check every 2 seconds
+        }
+    };
+
+    poll();
 }
