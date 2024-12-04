@@ -52,15 +52,15 @@ async function pollForResponse() {
     const token = document.getElementById('githubToken').value;
     let attempts = 0;
     const maxAttempts = 30;
-    let lastSeenSha = '';
 
-    // Add initial delay to allow workflow to start
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Store timestamp when we started
+    const requestTime = Date.now();
 
     const checkResponse = async () => {
         try {
-            const fileResponse = await fetch(
-                `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json?timestamp=${Date.now()}`,
+            // First check the timestamp file
+            const timestampResponse = await fetch(
+                `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/latest_response_timestamp.txt`,
                 {
                     headers: {
                         'Authorization': `token ${token}`,
@@ -69,25 +69,39 @@ async function pollForResponse() {
                 }
             );
 
-            if (fileResponse.ok) {
-                const data = await fileResponse.json();
+            if (timestampResponse.ok) {
+                const timestampData = await timestampResponse.json();
+                const timestamp = atob(timestampData.content).trim();
                 
-                // If we've seen this version before, keep polling
-                if (data.sha === lastSeenSha) {
-                    return false;
-                }
+                // Convert timestamp to milliseconds for comparison
+                const responseTime = parseInt(timestamp) * 1000;
                 
-                lastSeenSha = data.sha;
-                try {
-                    const decodedContent = atob(data.content);
-                    const content = JSON.parse(decodedContent);
-                    responseDiv.textContent = content.response;
-                    statusDiv.textContent = 'Status: Response received!';
-                    return true;
-                } catch (parseError) {
-                    console.error('Error parsing response:', parseError);
-                    statusDiv.textContent = 'Status: Error parsing response';
-                    return true;
+                // Only proceed if this response is newer than our request
+                if (responseTime > requestTime) {
+                    const fileResponse = await fetch(
+                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
+                        {
+                            headers: {
+                                'Authorization': `token ${token}`,
+                                'Accept': 'application/vnd.github.v3+json',
+                            }
+                        }
+                    );
+
+                    if (fileResponse.ok) {
+                        const data = await fileResponse.json();
+                        try {
+                            const decodedContent = atob(data.content);
+                            const content = JSON.parse(decodedContent);
+                            responseDiv.textContent = content.response;
+                            statusDiv.textContent = 'Status: Response received!';
+                            return true;
+                        } catch (parseError) {
+                            console.error('Error parsing response:', parseError);
+                            statusDiv.textContent = 'Status: Error parsing response';
+                            return true;
+                        }
+                    }
                 }
             }
         } catch (error) {
@@ -110,5 +124,7 @@ async function pollForResponse() {
         }
     };
 
+    // Add initial delay to allow workflow to start
+    await new Promise(resolve => setTimeout(resolve, 3000));
     poll();
 }

@@ -18,6 +18,9 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # Create unique timestamp for this response
+          timestamp=$(date +%s)
+          
           # Escape special characters in prompts
           system_prompt=$(echo '${{ github.event.client_payload.system_prompt }}' | jq -R -s .)
           user_prompt=$(echo '${{ github.event.client_payload.user_prompt }}' | jq -R -s .)
@@ -45,13 +48,14 @@ jobs:
           # Extract just the response text using jq
           response_text=$(echo $response | jq -r '.content[0].text // .error.message')
           
-          # Create response JSON file with proper escaping
-          echo "{\"response\": $(echo "$response_text" | jq -R -s .)}" > response.json
+          # Create response JSON file with timestamp
+          echo "{\"response\": $(echo "$response_text" | jq -R -s .), \"timestamp\": \"$timestamp\"}" > response.json
+          echo "$timestamp" > latest_response_timestamp.txt
 
       - name: Commit and push response
         run: |
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
-          git add response.json
+          git add response.json latest_response_timestamp.txt
           git commit -m "Update Claude response [skip ci]"
           git push
