@@ -88,20 +88,13 @@ async function pollForResponse() {
                 }
 
                 const latestRun = runsData.workflow_runs[0];
-                console.log('Latest run status:', latestRun.status);
+                console.log('Latest run status:', latestRun.status, 'Updated at:', latestRun.updated_at);
 
                 if (latestRun.status === 'completed') {
-                    // Check if this run completed after we started polling
-                    const runCompletedAt = new Date(latestRun.updated_at).getTime();
-                    if (runCompletedAt < startTime) {
-                        console.log('Found old completed run, waiting for new one...');
-                        return false;
-                    }
-
                     // Now check for the response file
                     console.log('Checking response file...');
                     const fileResponse = await fetch(
-                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json?timestamp=${Date.now()}`,
+                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json?t=${Date.now()}`,
                         {
                             headers: {
                                 'Authorization': `token ${token}`,
@@ -129,14 +122,9 @@ async function pollForResponse() {
                             statusDiv.textContent = 'Status: Error parsing response';
                             return true;
                         }
-                    } else if (fileResponse.status === 404) {
-                        console.log('Response file not found');
-                        statusDiv.textContent = 'Status: Workflow completed but no response file found';
-                        return false;  // Changed to false to keep polling
                     } else {
                         console.log('Error fetching response file:', fileResponse.status);
-                        statusDiv.textContent = `Status: Error fetching response - ${fileResponse.status}`;
-                        return false;  // Changed to false to keep polling
+                        return false;
                     }
                 } else if (latestRun.status === 'failure') {
                     console.log('Workflow failed');
@@ -165,8 +153,13 @@ async function pollForResponse() {
         console.log(`Polling attempt ${attempts}/${maxAttempts}`);
         const finished = await checkWorkflowRun();
         
-        if (!finished) {
+        if (!finished && attempts < maxAttempts) {
             setTimeout(poll, 2000); // Check every 2 seconds
+        } else {
+            if (!finished) {
+                statusDiv.textContent = 'Status: Polling timeout reached';
+            }
+            console.log('Polling complete');
         }
     };
 
