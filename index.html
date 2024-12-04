@@ -3,44 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claude Chat Interface</title>
+    <title>Claude Chat via GitHub Actions</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             max-width: 800px;
             margin: 20px auto;
-            padding: 0 20px;
+            padding: 20px;
         }
         .container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-        }
-        #response {
-            white-space: pre-wrap;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-top: 10px;
-            min-height: 100px;
+            gap: 15px;
         }
         textarea {
+            width: 100%;
             height: 100px;
+            padding: 8px;
+        }
+        .response {
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        input[type="password"] {
+            padding: 8px;
+            width: 100%;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Claude Chat Interface</h1>
+        <h1>Claude Chat via GitHub Actions</h1>
         
-        <label for="apiKey">API Key:</label>
-        <input type="password" id="apiKey" placeholder="Enter your Anthropic API key">
+        <label for="githubToken">GitHub Personal Access Token:</label>
+        <input type="password" id="githubToken" placeholder="Enter your GitHub token">
         
-        <label for="prompt">Prompt:</label>
-        <textarea id="prompt" placeholder="Enter your message to Claude"></textarea>
+        <label for="systemPrompt">System Prompt:</label>
+        <textarea id="systemPrompt" placeholder="Enter system prompt"></textarea>
         
-        <button onclick="sendMessage()">Send Message</button>
+        <label for="userPrompt">User Prompt:</label>
+        <textarea id="userPrompt" placeholder="Enter your message to Claude"></textarea>
         
-        <div id="response"></div>
+        <button onclick="triggerWorkflow()">Send Message</button>
+        
+        <div id="status">Status: Ready</div>
+        <div id="response" class="response">Response will appear here...</div>
     </div>
     <script src="script.js"></script>
 </body>
