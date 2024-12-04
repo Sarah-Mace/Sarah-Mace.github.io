@@ -1,3 +1,1 @@
-{
-	"response":"No response yet"
-}
+{"response": "{"type":"error","error":{"type":"authentication_error","message":"x-api-key header is required"}}"}
