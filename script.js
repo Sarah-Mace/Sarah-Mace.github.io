@@ -1,63 +1,12 @@
-const GITHUB_USERNAME = 'Sarah-Mace';
-const GITHUB_REPO = 'Sarah-Mace.github.io';
-
-async function triggerWorkflow() {
-    const token = document.getElementById('githubToken').value;
-    const systemPrompt = document.getElementById('systemPrompt').value;
-    const userPrompt = document.getElementById('userPrompt').value;
-    const statusDiv = document.getElementById('status');
-    const responseDiv = document.getElementById('response');
-
-    if (!token || !userPrompt) {
-        alert('Please enter both GitHub token and user prompt');
-        return;
-    }
-
-    statusDiv.textContent = 'Status: Triggering workflow...';
-    console.log('Sending request with prompts:', { systemPrompt, userPrompt });
-
-    try {
-        // Trigger the workflow
-        const response = await fetch(
-            `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/dispatches`,
-            {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    event_type: 'claude_chat',
-                    client_payload: {
-                        system_prompt: systemPrompt || '',
-                        user_prompt: userPrompt
-                    }
-                })
-            }
-        );
-
-        console.log('Workflow trigger response:', response.status);
-
-        if (response.ok) {
-            statusDiv.textContent = 'Status: Workflow triggered! Checking for response...';
-            console.log('Starting response polling...');
-            pollForResponse();
-        } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-    } catch (error) {
-        console.error('Error triggering workflow:', error);
-        statusDiv.textContent = `Status: Error - ${error.message}`;
-    }
-}
-
 async function pollForResponse() {
     const responseDiv = document.getElementById('response');
     const statusDiv = document.getElementById('status');
     const token = document.getElementById('githubToken').value;
     let attempts = 0;
     const maxAttempts = 30;
+    
+    // Store the timestamp when we started
+    const startTime = Date.now();
 
     const checkWorkflowRun = async () => {
         try {
@@ -86,22 +35,30 @@ async function pollForResponse() {
                 console.log('Latest run status:', latestRun.status);
 
                 if (latestRun.status === 'completed') {
+                    // Check if this run completed after we started polling
+                    const runCompletedAt = new Date(latestRun.updated_at).getTime();
+                    if (runCompletedAt < startTime) {
+                        console.log('Found old completed run, waiting for new one...');
+                        return false;
+                    }
+
                     // Now check for the response file
                     console.log('Checking response file...');
                     const fileResponse = await fetch(
-                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json`,
+                        `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/response.json?timestamp=${Date.now()}`,
                         {
                             headers: {
                                 'Authorization': `token ${token}`,
                                 'Accept': 'application/vnd.github.v3+json',
+                                'Cache-Control': 'no-cache'
                             }
                         }
                     );
+
                     if (fileResponse.ok) {
                         const data = await fileResponse.json();
                         console.log('Response file data:', data);
                         
-                        // Decode base64 content and parse JSON
                         try {
                             const decodedContent = atob(data.content);
                             console.log('Decoded content:', decodedContent);
@@ -119,11 +76,11 @@ async function pollForResponse() {
                     } else if (fileResponse.status === 404) {
                         console.log('Response file not found');
                         statusDiv.textContent = 'Status: Workflow completed but no response file found';
-                        return true;
+                        return false;  // Changed to false to keep polling
                     } else {
                         console.log('Error fetching response file:', fileResponse.status);
                         statusDiv.textContent = `Status: Error fetching response - ${fileResponse.status}`;
-                        return true;
+                        return false;  // Changed to false to keep polling
                     }
                 } else if (latestRun.status === 'failure') {
                     console.log('Workflow failed');
