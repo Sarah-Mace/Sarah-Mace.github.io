@@ -8,7 +8,7 @@ jobs:
   chat:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Explicitly set write permissions
+      contents: write
     
     steps:
       - name: Checkout repository
@@ -20,13 +20,12 @@ jobs:
         run: |
           echo "Making API call to Claude..."
           
-          # Debug: Print prompts (sanitized)
-          echo "System prompt: ${{ github.event.client_payload.system_prompt }}"
-          echo "User prompt: ${{ github.event.client_payload.user_prompt }}"
+          # Verify API key is set (will print length only for security)
+          echo "API key length: ${#ANTHROPIC_API_KEY}"
           
           # Make API call and store response
-          response=$(curl -v -X POST https://api.anthropic.com/v1/messages \
-            -H "x-api-key: $ANTHROPIC_API_KEY" \
+          response=$(curl -s -X POST https://api.anthropic.com/v1/messages \
+            -H "x-api-key: ${ANTHROPIC_API_KEY}" \
             -H "content-type: application/json" \
             -H "anthropic-version: 2023-06-01" \
             -d '{
@@ -44,11 +43,11 @@ jobs:
               ]
             }')
           
-          echo "API Response received:"
-          echo "$response"
+          # Extract just the response text using jq
+          response_text=$(echo $response | jq -r '.content[0].text // .error.message')
           
-          # Create response JSON file
-          echo "{\"response\": \"$response\"}" > response.json
+          # Create response JSON file with proper escaping
+          echo "{\"response\": $(echo "$response_text" | jq -R -s .)}" > response.json
           
           echo "Created response.json:"
           cat response.json
@@ -58,14 +57,5 @@ jobs:
           git config --global user.name 'GitHub Action'
           git config --global user.email 'action@github.com'
           git add response.json
-          git status
           git commit -m "Update Claude response [skip ci]"
           git push
-
-      - name: Debug information
-        if: always()
-        run: |
-          echo "Current directory contents:"
-          ls -la
-          echo "Response file contents:"
-          cat response.json || echo "response.json not found"
