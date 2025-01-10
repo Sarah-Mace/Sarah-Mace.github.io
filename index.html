@@ -53,5 +53,34 @@
         <div id="response" class="response">Response will appear here...</div>
     </div>
     <script src="script.js"></script>
+    
+    <p>
+    @RestController
+public class ExcelController {
+    
+    @GetMapping("/download-excel-zip")
+    public ResponseEntity<byte[]> downloadExcelZip() {
+        Set<Workbook> workbooks = createWorkbooks(); // Your method to create workbooks
+        
+        ExcelToZip excelToZip = new ExcelToZip();
+        byte[] zipBytes = excelToZip.createZipWithWorksheets(workbooks);
+        
+        // Clean up workbooks
+        for (Workbook workbook : workbooks) {
+            try {
+                workbook.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", "workbooks.zip");
+        
+        return new ResponseEntity<>(zipBytes, headers, HttpStatus.OK);
+    }
+}
+    </p>
 </body>
 </html>
